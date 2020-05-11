@@ -2,6 +2,8 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -17,52 +19,72 @@ public class FetchURL {
         System.out.println("Pls enter: URL Address ");
         String url = in.nextLine();
 
-        System.out.println("pls enter: No of Parallel Threads that will do the fetch  ");
-        int noOfParallelThreads = in.nextInt();
+        System.out.println("Pls enter: Number of Threads");
+        int numOfThreads = in.nextInt();
 
-        System.out.println("Pls enter: Number of times each thread will fetch ");
-        int noOfTimeThreadFetch = in.nextInt();
+        System.out.println("Pls enter: Number of Request ");
+        int numOfRequests = in.nextInt();
 
-        int totalCall = noOfParallelThreads * noOfTimeThreadFetch;
-        ExecutorService executor = Executors.newFixedThreadPool(noOfParallelThreads);
+        int threadPoolSize = 3;
+
+        ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize);
         URL siteURL = new URL(url);
         int code = 200;
-        
-        for (int i = 0; i < totalCall; i++) {
 
-            int count = i;
-            executor.submit(() -> {
-                long startTime = System.currentTimeMillis();
+        List<String> result = new LinkedList<>();
 
-               
-                try {
+        for (int i = 0; i < numOfThreads; i++) {
 
-                    HttpURLConnection connection = (HttpURLConnection) siteURL.openConnection();
-                    connection.setRequestMethod("GET");
-                    connection.connect();
+            for (int j = 0; j < numOfRequests; j++) {
 
-                    if (connection.getResponseCode() == code) {
-                        long time = System.currentTimeMillis() - startTime;
+                int count = i;
+                executor.submit(() -> {
+                    long startTime = System.currentTimeMillis();
+                    try {
 
-                        System.out.println("request/" + count + Thread.currentThread().getName().replace("pool-1-thread", "Thread") + ",HTTP " + code + ", " + time + " milliseconds");
+                        HttpURLConnection connection = (HttpURLConnection) siteURL.openConnection();
+                        connection.setRequestMethod("GET");
+                        connection.connect();
+
+                        if (connection.getResponseCode() == code) {
+                            long time = System.currentTimeMillis() - startTime;
+
+                            result.add("request/" + count + Thread.currentThread().getName().replace("pool-1-thread", "Thread") + ",HTTP " + code + ", " + time + " milliseconds");
+                        }
+
+                    } catch (IOException e) {
+                        System.out.println("Not able to process request " + count);
+                        e.printStackTrace();
                     }
+                });
 
-                } catch (IOException e) {
-                    System.out.println("Not able to process request " + count);
-                    e.printStackTrace();
-                }
-            });
+            }
 
         }
 
         // wait until all threads will be finished
         executor.shutdown();
         try {
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.HOURS);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
+        System.out.println("============================");
+
+        printFetchDetails(url, numOfThreads, numOfRequests);
+        System.out.println("Request call Results");
+        result.forEach(System.out::println);
+        System.out.println("============================");
     }
 
+    private static void printFetchDetails(String url, long numOfThreads, long numOfRequests){
+        StringBuilder sb = new StringBuilder();
+        sb.append("Fetch Result Details:\n");
+        sb.append("URL: ").append(url+"\n");
+        sb.append("Total Threads: ").append(numOfThreads+"\n");
+        sb.append("Total Requests: ").append(numOfRequests+"\n");
+        System.out.println("\n"+ sb.toString());
+    }
 }
+
